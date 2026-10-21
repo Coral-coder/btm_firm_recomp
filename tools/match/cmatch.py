@@ -14,6 +14,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import difflib
 
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB, CS_MODE_MCLASS
 
@@ -39,7 +40,7 @@ def known_addresses(src_text):
     for n, a in re.findall(r"/\* ---- (\w+) @ ([0-9a-f]{8}) ---- \*/", src):
         names.setdefault(n, int(a, 16))
     # explicit annotations in the candidate source: "/* @ 0x2024c */" before a definition
-    for a, n in re.findall(r"@\s*0x([0-9a-f]+)\s*\*/\s*\n[^\n(]*?\b(\w+)\s*\(", src_text):
+    for a, n in re.findall(r"@\s*0x([0-9a-f]+)[^\n]*?\*/\s*\n[^\n(]*?\b(\w+)\s*\(", src_text):
         names[n] = int(a, 16)
     return names
 
@@ -51,6 +52,9 @@ def norm(code, addr):
         out.append("%-6s %s" % (i.mnemonic, re.sub(r"#0x[0-9a-f]+$", "#X", i.op_str)
                                 if i.mnemonic.startswith("b") else i.op_str))
     return out
+
+
+DIFF_NAME = None
 
 
 def check(path, img, extra):
@@ -84,6 +88,11 @@ def check(path, img, extra):
             print("  %-34s MATCH @ 0x%05x (%d bytes)" % (name, addr, len(body)))
             continue
         mine, theirs = norm(body, addr), norm(want, addr)
+        if name == DIFF_NAME:
+            print("  %s: mine %d bytes" % (name, len(body)))
+            for l in difflib.unified_diff(theirs, mine, "image", "mine", n=2, lineterm=""):
+                print("      " + l)
+            continue
         k = next((i for i, (a, b) in enumerate(zip(mine, theirs)) if a != b), min(len(mine), len(theirs)))
         print("  %-34s DIFF  @ 0x%05x at insn %d:" % (name, addr, k))
         for i in range(max(0, k - 1), min(k + 4, max(len(mine), len(theirs)))):
@@ -94,6 +103,9 @@ def check(path, img, extra):
 
 
 def main(argv):
+    global DIFF_NAME
+    if argv and argv[0] == "--diff":
+        DIFF_NAME, argv = argv[1], argv[2:]
     img = open(os.path.join(REPO, "reference/nrf51822_xxac.bin"), "rb").read()
     extra = ["-I" + os.path.join(REPO, "matching/include"),
              "-I" + os.path.join(REPO, "matching/config")] + \

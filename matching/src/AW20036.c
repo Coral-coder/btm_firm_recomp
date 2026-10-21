@@ -11,6 +11,9 @@
 #include "nrf_drv_twi.h"
 #include "app_error.h"
 
+/* The original build kept this call out of line in aw20036_check_status(). */
+#define NOINLINE __attribute__((noinline))
+
 #define AW20036_ADDR   0x3A
 #define AW_LED_COUNT   9
 
@@ -18,6 +21,7 @@
 #define AW_PAGE_CFG    0xC0
 #define AW_PAGE_PWM    0xC1
 #define AW_PAGE_SCALE  0xC2
+#define AW_PAGE_PWMSL  0xC3
 
 /* One LED: current enable bits, the enable register/bitmask it belongs to,
  * colour, per-channel scaling, and the PWM / scaling register numbers of its
@@ -46,6 +50,31 @@ static inline void aw_write(uint8_t reg, uint8_t val)
 
     err_code = nrf_drv_twi_tx(&m_twi_aw, AW20036_ADDR, buf, sizeof(buf), false);
     APP_ERROR_CHECK(err_code);
+}
+
+#line 91 "../../../common/display/AW20036.c"
+static inline uint8_t aw_read(uint8_t reg)
+{
+    uint8_t val;
+    ret_code_t err_code;
+
+    err_code = nrf_drv_twi_tx(&m_twi_aw, AW20036_ADDR, &reg, 1, false);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_twi_rx(&m_twi_aw, AW20036_ADDR, &val, 1);
+    APP_ERROR_CHECK(err_code);
+
+    return val;
+}
+
+/* @ 0x1fff8  Set the global current (upper bits of register 0x03). */
+void aw20036_set_current(uint8_t current)
+{
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+    aw_write(0x02, 0x01);
+    aw_write(0x03, current + (aw_read(0x03) & 0x0F));
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+    aw_write(0x01, 0x00);
 }
 
 /* @ 0x20108 */
@@ -130,6 +159,45 @@ void aw20036_commit_led(uint8_t led)
     }
 }
 
+/* Defaults, defined in .data elsewhere (0x2000209c..0x200020a1). */
+typedef struct { uint8_t r, g, b; } aw_color_t;
+extern aw_color_t m_aw_default_color;
+extern uint8_t    m_aw_scale_r;
+extern uint8_t    m_aw_scale_g;
+extern uint8_t    m_aw_scale_b;
+
+#define AW_LED_INIT(i, reg, mask, pr, pg, pb)                       \
+    do {                                                            \
+        m_aw_leds[i].en           = 1;                              \
+        m_aw_leds[i].en_reg       = (reg);                          \
+        m_aw_leds[i].en_mask      = (mask);                         \
+        memcpy(m_aw_leds[i].rgb, &m_aw_default_color, 3);           \
+        m_aw_leds[i].scale[0]     = m_aw_scale_r;                   \
+        m_aw_leds[i].scale[1]     = m_aw_scale_g;                   \
+        m_aw_leds[i].scale[2]     = m_aw_scale_b;                   \
+        m_aw_leds[i].pwm_reg[0]   = (pr);                           \
+        m_aw_leds[i].pwm_reg[1]   = (pg);                           \
+        m_aw_leds[i].pwm_reg[2]   = (pb);                           \
+        m_aw_leds[i].scale_reg[0] = (pr);                           \
+        m_aw_leds[i].scale_reg[1] = (pg);                           \
+        m_aw_leds[i].scale_reg[2] = (pb);                           \
+    } while (0)
+
+/* Fill the LED table with the board's channel/enable mapping. */
+/* @ 0x20614  NONMATCHING: register allocation (image keeps scale_r in r8) */
+void aw20036_init_table(void)
+{
+    AW_LED_INIT(0, 0x32, 0x38, 0x0A, 0x0B, 0x09);
+    AW_LED_INIT(1, 0x34, 0x38, 0x16, 0x17, 0x15);
+    AW_LED_INIT(2, 0x36, 0x38, 0x22, 0x23, 0x21);
+    AW_LED_INIT(3, 0x31, 0x07, 0x01, 0x00, 0x02);
+    AW_LED_INIT(4, 0x33, 0x07, 0x0D, 0x0C, 0x0E);
+    AW_LED_INIT(5, 0x35, 0x07, 0x19, 0x18, 0x1A);
+    AW_LED_INIT(6, 0x31, 0x38, 0x04, 0x05, 0x03);
+    AW_LED_INIT(7, 0x33, 0x38, 0x10, 0x11, 0x0F);
+    AW_LED_INIT(8, 0x35, 0x38, 0x1C, 0x1D, 0x1B);
+}
+
 /* @ 0x20824  NONMATCHING: register allocation / address order */
 void aw20036_set_brightness(uint32_t led, uint8_t r, uint32_t g, uint32_t b)
 {
@@ -160,6 +228,138 @@ void aw20036_all_off(void)
 void aw20036_set_rgb(uint32_t led, uint32_t rgb)
 {
     memcpy(m_aw_leds[led].rgb, &rgb, 3);
+}
+
+/* @ 0x2089c  Drive every LED to one colour, bypassing the LED table. */
+void aw20036_fill(aw_color_t color)
+{
+    aw_write(AW_REG_PAGE, AW_PAGE_PWM);
+    for (uint8_t reg = 0; reg < 36; reg += 12)
+    {
+        aw_write(reg,     color.g);
+        aw_write(reg + 1, color.r);
+        aw_write(reg + 2, color.b);
+    }
+    for (uint8_t reg = 3; reg < 39; reg += 6)
+    {
+        aw_write(reg,     color.b);
+        aw_write(reg + 1, color.r);
+        aw_write(reg + 2, color.g);
+    }
+}
+
+/* Hardware pattern generator settings, passed by value (r0:r1). */
+typedef struct
+{
+    uint8_t pattern;    /* generator 0..2                 */
+    uint8_t cfg1;       /* -> 0x47 + pattern               */
+    uint8_t cfg0;       /* -> 0x44 + pattern               */
+    uint8_t t[4];       /* -> 0x4A + 4*pattern .. +3       */
+    uint8_t ctrl;       /* -> 0x56 + pattern               */
+} aw_pattern_t;
+
+/* @ 0x20a28  Configure hardware pattern generator 0..2. */
+int32_t aw20036_pattern_config(aw_pattern_t cfg)
+{
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+    switch (cfg.pattern)
+    {
+        case 0:
+            aw_write(0x44, cfg.cfg0);
+            aw_write(0x47, cfg.cfg1);
+            aw_write(0x4A, cfg.t[0]);
+            aw_write(0x4B, cfg.t[1]);
+            aw_write(0x4C, cfg.t[2]);
+            aw_write(0x4D, cfg.t[3]);
+            aw_write(0x56, cfg.ctrl);
+            break;
+        case 1:
+            aw_write(0x45, cfg.cfg0);
+            aw_write(0x48, cfg.cfg1);
+            aw_write(0x4E, cfg.t[0]);
+            aw_write(0x4F, cfg.t[1]);
+            aw_write(0x50, cfg.t[2]);
+            aw_write(0x51, cfg.t[3]);
+            aw_write(0x57, cfg.ctrl);
+            break;
+        case 2:
+            aw_write(0x46, cfg.cfg0);
+            aw_write(0x49, cfg.cfg1);
+            aw_write(0x52, cfg.t[0]);
+            aw_write(0x53, cfg.t[1]);
+            aw_write(0x54, cfg.t[2]);
+            aw_write(0x55, cfg.t[3]);
+            aw_write(0x58, cfg.ctrl);
+            break;
+        default:
+            return -1;
+    }
+    return 0;
+}
+
+/* @ 0x20da4  Start pattern generator n (optionally with bit n+4 in 0x43). */
+int32_t aw20036_pattern_start(uint8_t n, bool flag)
+{
+    uint8_t val;
+
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+
+    val = aw_read(0x43) | (1 << n);
+    if (flag)
+    {
+        val |= 1 << (n + 4);
+    }
+    aw_write(0x43, val);
+
+    aw_write(0x59, aw_read(0x59) | (1 << n));
+    return 0;
+}
+
+/* @ 0x20ed4  Stop pattern generator n. */
+NOINLINE int32_t aw20036_pattern_stop(uint8_t n)
+{
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+    aw_write(0x43, aw_read(0x43) & ~(1 << n));
+    aw_write(0x59, aw_read(0x59) & ~(1 << n));
+    return 0;
+}
+
+/* @ 0x20fec  Write one value (0..3) to all 36 channels on page 3. */
+void aw20036_set_all_page3(uint8_t val)
+{
+    aw_write(AW_REG_PAGE, AW_PAGE_PWMSL);
+    if (val < 4)
+    {
+        for (int ch = 0; ch < 36; ch++)
+        {
+            aw_write(ch, val);
+        }
+    }
+}
+
+/* @ 0x21070  Status poll: stop any pattern generator that has finished. */
+void aw20036_check_status(void)
+{
+    uint8_t status;
+
+    aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+    status = aw_read(0x0B);
+    if (status & 0x10)
+    {
+        aw20036_pattern_stop(0);
+    }
+    if (status & 0x20)
+    {
+        aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+        aw_write(0x43, aw_read(0x43) & ~(1 << 1));
+        aw_write(0x59, aw_read(0x59) & ~(1 << 1));
+    }
+    if (status & 0x40)
+    {
+        aw_write(AW_REG_PAGE, AW_PAGE_CFG);
+        aw_write(0x43, aw_read(0x43) & ~(1 << 2));
+        aw_write(0x59, aw_read(0x59) & ~(1 << 2));
+    }
 }
 
 /* @ 0x20a08 */
