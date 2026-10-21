@@ -71,14 +71,23 @@ make -C firmware/bondTouchMore flash
 ### Notes on fidelity
 
 This reconstructs the **vendor's observable behaviour**, not a byte-identical
-image. The decompiler output references ~1,500 absolute data addresses and
-~600 unnamed functions whose exact RAM data-structure layouts only exist in
-the original link; where a detail depends on an in-flash data table (e.g. the
-AW20036 physical channel/register map built at runtime by `FUN_00020614`), it
-is isolated behind a single table in the relevant module and marked for an
-exact drop-in, so the surrounding protocol logic is already correct.
+image (a from-source rebuild with a modern compiler never is). The decompiler
+output references ~1,500 absolute data addresses and ~600 unnamed functions
+whose exact layouts only exist in the original link.
+
+Where a detail depends on an in-flash data table, it is isolated behind a
+single table in the relevant module so the exact values can be dropped in from
+the vendor image. The **AW20036 channel and enable register maps are exact**,
+extracted from the vendor image by `tools/extract_aw20036_map.py`, which
+emulates the register-map builder `FUN_00020614` with Unicorn and reads the
+resulting command records. The driver's page model (`0xF0` select; `0xC0`/
+`0xC1`/`0xC2` for the enable/PWM/scaling pages) and the `PWM = colour >> 2`
+rule were likewise confirmed against the image.
+
+The vendor image (`reference/nrf51822_xxac.bin`, the application at flash
+`0x1B000`) is **not committed**; place it there to re-run the extraction tool.
 
 The AW20036 driver faithfully reproduces the wire protocol: 2-byte `[reg,val]`
 writes to I2C slave `0x3A`, page-2 scaling (27 bytes) then page-1 PWM
-(`PWM = colour >> 2`, 27 bytes) then the packed enable registers, and the
+(27 bytes) then the packed enable registers (`0x31..0x36`), and the
 `set_brightness` clamp fix-up seen at `0x20824`.

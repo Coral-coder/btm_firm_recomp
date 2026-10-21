@@ -35,15 +35,37 @@
 #define AW20036_REG_GCCR     0x01   /* global constant-current              */
 #define AW20036_REG_RESET    0x2F   /* software reset (write 0x00)          */
 
-/* Physical channel index (0..53) for each logical LED's R,G,B.
+/* Per-channel register address for each logical LED's R, G, B.
  *
- * Linear placeholder map (LED i -> channels 3*i, 3*i+1, 3*i+2). Replace with
- * the vendor map recovered from FUN_00020614 for an exact hardware match;
- * nothing else in this file needs to change. */
+ * Exact vendor map, extracted from the real image by emulating the template
+ * builder FUN_00020614 (@ 0x20614) and reading the 9 x 15-byte command records
+ * at 0x20002578: the channel registers live at record offsets 9/0xA/0xB (PWM,
+ * page 1) and mirror at 0xC/0xD/0xE (scaling, page 2). The same register index
+ * addresses a channel on both pages. */
 static const uint8_t aw20036_chan[AW20036_LED_COUNT][3] = {
-    { 0,  1,  2}, { 3,  4,  5}, { 6,  7,  8},
-    { 9, 10, 11}, {12, 13, 14}, {15, 16, 17},
-    {18, 19, 20}, {21, 22, 23}, {24, 25, 26},
+    /*        R     G     B   */
+    { 0x0A, 0x0B, 0x09 },   /* LED 0 */
+    { 0x16, 0x17, 0x15 },   /* LED 1 */
+    { 0x22, 0x23, 0x21 },   /* LED 2 */
+    { 0x01, 0x00, 0x02 },   /* LED 3 */
+    { 0x0D, 0x0C, 0x0E },   /* LED 4 */
+    { 0x19, 0x18, 0x1A },   /* LED 5 */
+    { 0x04, 0x05, 0x03 },   /* LED 6 */
+    { 0x10, 0x11, 0x0F },   /* LED 7 */
+    { 0x1C, 0x1D, 0x1B },   /* LED 8 */
+};
+
+/* Channel-enable registers (page 0), extracted from aw20036_write_enables
+ * @ 0x20108. Each register's value is the sum of one or two LEDs' enable
+ * bytes (0x01 when on), exactly as the vendor packs them. */
+static const struct { uint8_t reg; int8_t led_a; int8_t led_b; }
+aw20036_enable_map[6] = {
+    { 0x31, 3, 6 },
+    { 0x32, 0, -1 },
+    { 0x33, 4, 7 },
+    { 0x34, 1, -1 },
+    { 0x35, 5, 8 },
+    { 0x36, 2, -1 },
 };
 
 /* ---- Driver state ------------------------------------------------------- */
@@ -188,29 +210,24 @@ void aw20036_all_off(void)
 
 /* Write the packed channel-enable registers (page 0).
  *
- * Mirrors aw20036_write_enables @ 0x20108: a page select followed by the
- * enable bytes. The vendor packs two logical LEDs per enable register; here
- * we expose one enable bit per physical channel across the AW20036's enable
- * register bank (6 bytes covering 48 channels; we use the first 27). */
+ * Mirrors aw20036_write_enables @ 0x20108: select page 0, then write the six
+ * enable registers 0x31..0x36, each carrying the sum of its mapped LEDs'
+ * enable bytes (0x01 per enabled LED) exactly as the vendor packs them. */
 void aw20036_write_enables(void)
 {
-    uint8_t enbytes[6];
-    uint8_t led, c, ch;
-
-    memset(enbytes, 0, sizeof(enbytes));
-    for (led = 0; led < AW20036_LED_COUNT; led++) {
-        if (!m_enabled[led]) {
-            continue;
-        }
-        for (c = 0; c < 3; c++) {
-            ch = aw20036_chan[led][c];
-            enbytes[ch >> 3] |= (uint8_t)(1u << (ch & 7));
-        }
-    }
+    uint8_t i;
 
     aw20036_select_page(AW20036_PAGE_CFG);
-    for (c = 0; c < sizeof(enbytes); c++) {
-        /* AW20036 channel-enable registers start at 0x02 on page 0. */
-        aw20036_write((uint8_t)(0x02 + c), enbytes[c]);
+    for (i = 0; i < 6; i++) {
+        uint8_t val = 0;
+        int8_t a = aw20036_enable_map[i].led_a;
+        int8_t b = aw20036_enable_map[i].led_b;
+        if (a >= 0 && m_enabled[a]) {
+            val += 0x01;
+        }
+        if (b >= 0 && m_enabled[b]) {
+            val += 0x01;
+        }
+        aw20036_write(aw20036_enable_map[i].reg, val);
     }
 }

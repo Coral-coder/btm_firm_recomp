@@ -6,3 +6,6 @@
 *.d
 *.out
 *.map
+
+# Vendor firmware image for analysis (not committed)
+/reference/
