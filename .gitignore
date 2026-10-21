@@ -10,3 +10,4 @@
 # Vendor firmware image for analysis (not committed)
 /reference/
 /matching/build/
+__pycache__/
