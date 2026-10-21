@@ -1,0 +1,41 @@
+# Bond Touch More (v3/BTM) nRF51822, base 0x1B000
+0x249c4 ffb1_app_cmd_dispatch  [prefix, cmd, args..]; table 0x3312c indexed cmd-0x11 (0x11..0x57)
+0x22b84 cmd4b_led_color  args[0]==0 -> sched {2, led, R, G, B}; else {3} (clear)
+0x21dbc display_sched_event_handler  8 cases (table 0x32fd8)
+0x21cf0 display_all_leds_color  9 LEDs, saved brightness
+0x23238 motor_set_level_table  gain[i] = level*base[i]/100 (9 positions)
+0x232c0 motor_set_balance
+0x232d4 motor_preview_buzz
+0x22db8 motor_pan_position  AW86224 x2 (I2C 0x58) reg 0x1E: A = gain[p]-bal, B = gain[8-p]+bal
+0x22690 display_set_brightness  cmd 0x4D
+0x29e00 settings_set_vibration
+0x29db0 settings_get_brightness
+0x29da4 settings_set_brightness
+0x29dbc settings_set_led_current
+0x269b8 fsm_dispatch_event  per-state jump table 0x333a4 (21 states), state var 0x200020f6
+0x254cc ffb2_on_write  touch pattern header + 20-byte sample packets
+0x2237c display_show  (mode, positions, idx)
+0x2087c aw20036_set_rgb
+0x20a08 aw20036_led_on
+0x20824 aw20036_set_brightness
+0x2024c aw20036_commit_all  63 I2C writes: page2 (scaling) x27, page1 (PWM=RGB>>2) x27, enables x7
+0x203e8 aw20036_commit_led  one LED: scaling x3, PWM x3, enable
+0x2084c aw20036_all_off  clears all 9 enable flags and writes enables (0x20108)
+0x20108 aw20036_write_enables
+0x21bb0 display_mask_color  (mask9, rgb): all off, then LEDs in mask lit; only caller = power-off animation (mask 0x38)
+0x22a88 display_test_colors_split  LEDs 0-3 = c1, LED 4 off, LEDs 5-8 = c2 (TEST_COLORS, cmd 0x47)
+0x28630 cmd47_store_test_colors  args [R1 G1 B1 R2 G2 B2 secs(1..10)]
+0x21f9c display_partner_menu  page = active-slot mask; page 7: LEDs 0-2 slot1, 3-5 slot2, 6-8 slot3
+0x2260c display_factory_touch_two_color  factory touch test: finger LEDs in two fixed colours
+0x213e8 display_animation  index 0..11 via table
+0x22bc8 display_set_color_mode  1 = colour1, 2 = time gradient, 3 = slot colour (recording only)
+0x22bd4 display_get_color_mode
+0x29c34 settings_active_slot_mask
+0x29c98 settings_get_slot_color
+0x29c54 settings_set_slot_color
+0x29cc0 settings_set_slot_active
+0x24380 sched_event_to_fsm  sched code 6 (touch reg1==3) -> FSM event 9 (open MENU)
+0x215dc anim_sweep_a
+0x217e4 anim_sweep_b
+0x22738 anim_slot_sweep_a
+0x228e4 anim_slot_sweep_b

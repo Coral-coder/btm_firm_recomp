@@ -1,0 +1,50 @@
+# Bond Touch 4 (v4, API 0x44) nRF52832 S132, base 0x26000
+0x358e0 ble_bond_service_on_write  routes writes: FFA1 token, FFA2 AUID, FFA6 appcmd, CCCDs FFA4/FFA5
+0x2c274 ffa6_on_write  [0x10] (len 1) -> sends "ABCD"; [0x88,len,frame,len,frame..] -> batch; else process_app_cmd
+0x2c2e0 ffa2_auid_write
+0x2c310 ffa1_token_write
+0x37b80 process_app_cmd  opcode 0x25..0x34 (tbb)
+0x2df34 cmd26_led_motor_ctrl_execute  same layout as v2
+0x2dfc8 cmd33_test_step_execute
+0x2c858 config_cmd_process  0x27
+0x2ff58 led_motor_ctrl_queue_add  20 x 17 B
+0x2ff9c led_motor_ctrl_queue_get
+0x2fff0 led_motor_test_queue_add  256 x 15 B
+0x30064 led_motor_test_queue_get
+0x3a3d4 start_execute_queue_led_motor_ctrl
+0x3a4f8 start_execute_queue_led_motor_test
+0x3c634 leds_off
+0x3c6d8 leds_req_blink
+0x3c710 leds_req_breath
+0x3c7f4 leds_req_test_3color
+0x3c854 leds_execute_timer_start  ticks = (ms*32768+500)/1000 (prescaler 0)
+0x3c8b8 leds_execute_timer_stop
+0x3cafc queue_step_timer_start
+0x31610 main_loop  LEDS_MODE switch 0x11..0x1a
+0x300d4 leds_mode_blink_run
+0x30128 leds_mode_breath_disconnect_run
+0x30180 leds_mode_breath_lowbattery_run
+0x301d8 leds_mode_breath_run
+0x30230 leds_mode_constant_on_run
+0x30274 leds_mode_fade_out_run
+0x302b8 leds_mode_test_run
+0x2ff10 leds_mode_test_js_run
+0x3c468 leds_mode_user_select_breath
+0x30304 leds_power_on
+0x303b8 aw9109_build_breath_program
+0x30604 aw9109_build_blink_program_3rgb
+0x30980 aw9109_build_constant_program
+0x30ce8 aw9109_build_fade_program
+0x29e90 aw9109_encode_wait
+0x29ee8 aw9109_prog_set_channel_blink
+0x2a3d8 aw9109_write_reg16
+0x2a774 aw9109_load_program
+0x2a7bc aw9109_run_program
+0x3c590 led_color_calibration
+0x2913c motor_off
+0x29190 motor_on
+0x29a3c app_timer_start  ticks < 5 -> 7
+0x28f58 app_error_fault_handler  -> System reset
+0x26218 app_error_handler
+0x32184 post_state_event
+0x37a64 debug_printf

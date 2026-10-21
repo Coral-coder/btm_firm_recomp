@@ -1,0 +1,8 @@
+# Nordic SDK is fetched on demand (scripts/fetch_sdk.sh), never committed.
+/build/
+# Build outputs
+**/_build/
+*.o
+*.d
+*.out
+*.map

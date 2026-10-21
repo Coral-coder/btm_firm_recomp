@@ -1,0 +1,53 @@
+# Bond Touch (v2, API 0x42) nRF51822 S130, base 0x1B000
+0x20848 ffa6_on_write  FFA6 app-command write (no batching on v2): -> process_app_cmd(data,len)
+0x208ac ffa1_token_write  token write ("12345678")
+0x286e4 process_app_cmd  opcode switch 0x25..0x34 (Keil switch8; target = 0x2870a + 2*b)
+0x21878 cmd26_led_motor_ctrl_execute  0x26 frame (p=frame+2): p[1]=strength 1..100, p[2..3]=vibMs, p[4]=ledMode 1 solid/2 breath/3 blink/4 off, p[5..7]=RGB, p[8]=bright 1..100, p[9..10]=transition, p[11..12]=hold, p[13..14]=sleep, p[15..16]=execute
+0x21934 cmd33_test_step_execute  0x33 step: p[0]=strength, p[1..3]=bright x3, p[4..12]=RGB x3, p[13..14]=ms
+0x20c6c config_cmd_process  0x27 configuration write
+0x21b04 cmd29_factory_mode  0x29 + 11 22 33 44: state 0x87 FACTORY, white LED, 30 s
+0x219d0 factory_mode_enter
+0x233ec led_motor_ctrl_queue_add  nrf_queue: 20 x 17 B
+0x23434 led_motor_ctrl_queue_get
+0x23490 led_motor_test_queue_add  nrf_queue: 256 x 15 B
+0x23508 led_motor_test_queue_get
+0x2a994 start_execute_queue_led_motor_ctrl  runs next 0x26 item, timer = max(vibMs, execute)
+0x2aac0 start_execute_queue_led_motor_test  runs next 0x33 item, timer = ms (0xFFFF = forever)
+0x2be5c leds_off
+0x2be90 leds_req_blink  mode 0x16 (rgb, bright, on_ms, off_ms, execute_ms)
+0x2bec8 leds_req_breath  mode 0x11 (rgb, bright, rise, fall, hold, off, execute)
+0x2bf08 leds_req_constant_on  mode 0x15
+0x2bf3c leds_req_fade_out  mode 0x14
+0x2bf74 leds_req_test_3color  mode 0x17 (3 colours, 3 brightness, ms)
+0x2bfd8 leds_execute_timer_start  ms -> ticks = (ms*32768+16500)/33000 (prescaler 32); <5 ticks -> app_error -> reset
+0x2c044 leds_execute_timer_stop
+0x2c08c motor_timer_start
+0x2c2bc queue_step_timer_start
+0x23564 leds_mode_blink_run
+0x235b8 leds_mode_breath_disconnect_run
+0x23610 leds_mode_breath_lowbattery_run
+0x23668 leds_mode_breath_run
+0x236b8 leds_mode_constant_on_run
+0x236fc leds_mode_fade_out_run
+0x23740 leds_mode_test_run  on = ms + 100, off = 0
+0x23788 leds_power_on
+0x237d8 aw9109_build_breath_program
+0x23958 aw9109_build_blink_program_3rgb  LED A ch6/5/4, LED B ch3/2/1, LED C ch8/9/7
+0x23bf8 aw9109_build_constant_program
+0x1e10c aw9109_encode_wait  0x3800 | (ms<510 ? ms*2 : 0x400|ms>>4)
+0x1e138 aw9109_prog_set_channel_blink
+0x1e1e0 aw9109_prog_set_channel_breath
+0x1e570 aw9109_write_reg16  I2C addr 0x2C, TWI0 400 kHz
+0x1e798 aw9109_load_program  0x53=0,0x54=0,0x7E=0, then N x reg 0x7F
+0x1e7ea aw9109_run_program  0x5F=0,0x54=2,0x53=1
+0x2bdc0 led_color_calibration
+0x1d3e8 motor_off
+0x1d408 motor_on  (strength %, timeout ms)
+0x248c4 motor_pwm_set_duty  app_pwm 5000 us period, duty = strength %
+0x24904 motor_pwm_stop
+0x1d3a0 app_error_handler
+0x1d370 app_error_fault_handler  -> NVIC_SystemReset
+0x1bf30 nvic_system_reset
+0x1dd04 app_timer_start  returns 7 (INVALID_PARAM) if ticks < 5
+0x24dac post_state_event
+0x286dc debug_printf_stub
