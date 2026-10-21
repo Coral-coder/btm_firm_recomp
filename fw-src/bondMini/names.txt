@@ -1,0 +1,17 @@
+# Bond Mini (API 0x45) nRF52 S132, base 0x26000
+0x2b368 ffa6_on_write  [0x10] ping; [0x88,len,frame..] batch; else process_app_cmd
+0x343f0 process_app_cmd  0x25..0x35 (0x35 = [0x35,0,0x88] toggles two input flags)
+0x2cb20 cmd26_led_motor_ctrl_execute
+0x2bb48 config_cmd_process
+0x2e954 led_motor_ctrl_queue_add
+0x2e9ec led_motor_test_queue_add
+0x367a4 start_execute_queue_led_motor_ctrl
+0x368c8 start_execute_queue_led_motor_test
+0x383d8 leds_off
+0x3842c leds_req_blink
+0x38464 leds_req_breath
+0x28400 motor_off
+0x28424 motor_on
+0x39194 input_flag_clear
+0x391ac input_flag_set
+0x342fc debug_printf

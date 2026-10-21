@@ -1,0 +1,4 @@
+# Bond Touch classic (v1) nRF51822 S130, base 0x1B000
+0x1b774 v1_cmd_dispatch  opcode u16 - 0x21, Keil switch8 (count 0x11, target = 0x1b78e + 2*b)
+0x1d034 v1_led_set_color  0x21: rgb scaled by byte7 (%), 3 PWM channels
+0x1faec lis3dh_config
