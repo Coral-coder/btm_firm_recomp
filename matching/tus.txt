@@ -1,0 +1,70 @@
+# Translation units of the vendor bondTouchMore image, in link order.
+#
+#   <first .text address>  <kind>  <name>
+#
+# kind:  lib    provided by the toolchain (crt*, newlib-nano, libgcc) - not emitted
+#        asm    emitted as assembly by tools/disasm/split.py
+#        sdk    compiled from nRF5 SDK 12.3 source (path relative to build/sdk)
+#
+# Order matches the vendor Makefile's SRC_FILES (derived from __FILE__
+# strings, SoftDevice SVC-stub runs at object starts, and SDK function
+# matches). Starts marked ~ are approximate; any order-preserving split links
+# to the same bytes, and boundaries are refined as files are decompiled.
+
+0x1b0c0  lib  crt_head                    # crtbegin, crt0, exit, __libc_init_array, memset, _exit
+0x1b210  asm  app_error
+0x1b230  asm  app_scheduler
+0x1b3f0  asm  app_timer
+0x1bcb0  asm  app_util_platform
+0x1bd1c  asm  fds                         # ~
+0x1d28c  asm  fstorage
+0x1d8e4  asm  hardfault_implementation    # ~
+0x1d8f4  asm  hardfault_handler_gcc
+0x1d928  asm  nrf_pwr_mgmt
+0x1d96c  asm  sdk_mapped_flags
+0x1de40  asm  nrf_drv_common              # ~
+0x1ded8  asm  nrf_drv_gpiote              # ~
+0x1e844  asm  nrf_drv_twi                 # ~
+0x1f3a4  asm  nrf_drv_adc                 # ~
+0x1f5d0  asm  nrf_drv_wdt
+0x1f758  asm  main
+0x1fb08  asm  int_mngr                    # ~
+0x1fff8  asm  AW20036
+0x21310  asm  display                     # ~
+0x22be0  asm  HMD_AW86224                 # ~
+0x24300  asm  event_mngr                  # ~
+0x24700  asm  battery                     # ~
+0x248d0  asm  app_cmd
+0x250f8  asm  ble_bond3_service
+0x2539c  asm  ble_bond3
+0x26900  asm  bond3_fsm
+0x28900  asm  touch_low_level             # ~
+0x28d00  asm  bond3_watchdog              # ~
+0x28d84  asm  nvs_storage
+0x29f84  asm  ble_advdata
+0x2a514  asm  ble_advertising
+0x2aa34  asm  ble_conn_params
+0x2ac00  asm  ble_conn_state              # ~
+0x2aec8  asm  ble_srv_common
+0x2aef0  asm  gatt_cache_manager
+0x2b3d0  asm  gatts_cache_manager
+0x2b65c  asm  id_manager
+0x2bf98  asm  peer_data                   # ~
+0x2bfa0  asm  peer_data_storage           # ~
+0x2c448  asm  peer_database               # ~
+0x2da38  asm  peer_id                     # ~
+0x2dbb4  asm  peer_manager                # ~
+0x2e2d0  asm  pm_buffer                   # ~
+0x2e418  asm  pm_mutex                    # ~
+0x2e55c  asm  security_dispatcher
+0x2ee1c  asm  security_manager            # ~
+0x2f4f0  sdk  components/toolchain/gcc/gcc_startup_nrf51.S
+0x2f53c  sdk  components/toolchain/system_nrf51.c
+0x2f61c  asm  ble_bas
+0x2f830  asm  ble_dis
+0x2fad0  asm  nrf_ble_ancs_c
+0x2ff8c  asm  ancs_tx_buffer
+0x30030  asm  ancs_attr_parser            # ~
+0x30300  asm  ble_db_discovery
+0x30fd4  asm  softdevice_handler
+0x31230  lib  crt_tail                    # libgcc, newlib-nano, libnosys, crti/crtn
