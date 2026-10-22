@@ -31,6 +31,7 @@ $(OUTPUT_DIRECTORY)/nrf51822_xxac.out: \
 SRC_FILES += \
   $(PROJ_DIR)/main.c \
   $(PROJ_DIR)/aw20036.c \
+  $(PROJ_DIR)/twi_bus.c \
 
 # SDK sources needed by the current skeleton. This list grows as subsystems
 # are reconstructed; keep it to what actually links.
