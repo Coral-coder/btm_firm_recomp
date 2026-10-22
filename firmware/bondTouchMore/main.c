@@ -1,15 +1,12 @@
 /*
- * Bond Touch More (v3 / BTM) firmware -- recompilation skeleton.
+ * Bond Touch More (Bond3) replacement firmware.
  *
  * Target : nRF51822_xxac + SoftDevice S130 v2.0.1 (nRF5 SDK 12.3.0)
  * App base: 0x1B000 (immediately after the S130 SoftDevice).
  *
- * This file provides the clean, buildable entry point and system bring-up.
- * The device-specific logic (AW20036 LED matrix, dual AW86224 haptics,
- * touch FSM, BLE application-command protocol) is reconstructed subsystem by
- * subsystem under this skeleton from fw-src/bondTouchMore/, keeping the build
- * green at every step. Each reconstructed subsystem is wired in through the
- * hooks marked below.
+ * Original code written against the hardware facts recovered from the vendor
+ * image (see docs/hardware.md). Bring-up order: SoftDevice, timers, board
+ * revision + low-power pin setup, both I2C buses, then the device drivers.
  */
 
 #include <stdint.h>
@@ -25,6 +22,10 @@
 #include "app_timer.h"
 #include "app_error.h"
 
+#include "nrf_gpio.h"
+#include "nrf_delay.h"
+#include "board.h"
+#include "twi_bus.h"
 #include "aw20036.h"
 
 /* app_timer configuration: 32.768 kHz RTC, prescaler matching the vendor
@@ -86,36 +87,65 @@ static void timers_init(void)
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
 }
 
-/* ---- Device subsystem bring-up ------------------------------------------ */
-/* Each of these is a hook for a reconstructed subsystem. They are no-ops in
- * the skeleton so the firmware links and runs the SoftDevice bring-up; they
- * are filled in from fw-src as each subsystem is rebuilt. */
+/* ---- Board bring-up --------------------------------------------------- */
 
-/* TWI pins for the AW20036. Placeholder GPIO numbers; confirm against the
- * board from the vendor TWI config before flashing to real hardware. */
-#define AW20036_SCL_PIN  7
-#define AW20036_SDA_PIN  8
+/* Read the revision strap on P0.28: pulled up it reads high on Rev 1 and low
+ * on Rev 2. The pin is returned to the low-power disconnected state. */
+static board_rev_t board_rev_detect(void)
+{
+    nrf_gpio_cfg_input(BOARD_REV_STRAP_PIN, NRF_GPIO_PIN_PULLUP);
+    nrf_delay_us(10);
+    board_rev_t rev = nrf_gpio_pin_read(BOARD_REV_STRAP_PIN) ? BOARD_REV_1 : BOARD_REV_2;
+    nrf_gpio_cfg_default(BOARD_REV_STRAP_PIN);
+    return rev;
+}
+
+/* Unused pins as disconnected inputs (lowest leakage), as the vendor does. */
+static void board_pins_low_power(board_rev_t rev)
+{
+    static const uint8_t unused[] = BOARD_UNUSED_PINS;
+    for (uint8_t i = 0; i < sizeof(unused); i++)
+    {
+        nrf_gpio_cfg_default(unused[i]);
+    }
+    if (rev >= BOARD_REV_2)
+    {
+        nrf_gpio_cfg_default(BOARD_UNUSED_PIN_REV2);
+    }
+}
+
+#define LED_CURRENT_LEVEL  2      /* conservative global current, 0..15 */
 
 static void leds_init(void)
 {
-    (void)aw20036_init(AW20036_SCL_PIN, AW20036_SDA_PIN);
+    APP_ERROR_CHECK(aw20036_init(LED_CURRENT_LEVEL));
+
+    /* Boot indication: dim teal on all nine LEDs. */
+    const aw20036_color_t boot = { .r = 0x00, .g = 0x40, .b = 0x40 };
+    for (uint8_t i = 0; i < AW20036_LED_COUNT; i++)
+    {
+        aw20036_set_color(i, boot);
+        aw20036_enable(i, true);
+    }
+    APP_ERROR_CHECK(aw20036_commit());
 }
-static void motor_init(void)  { /* TODO: dual AW86224 haptics (I2C 0x58) */ }
-static void touch_init(void)  { /* TODO: touch front-end + FFB2 sample path */ }
-static void fsm_init(void)    { /* TODO: fsm_dispatch_event, 21-state machine */ }
-static void ble_app_init(void){ /* TODO: GATT services + ffb1_app_cmd_dispatch */ }
+
+static void motor_init(void)  { /* TODO: AW86224 on both buses (0x58) */ }
+static void touch_init(void)  { /* TODO: touch controller 0x15, INT P0.18 */ }
+static void ble_app_init(void){ /* TODO: GATT service + app command protocol */ }
 
 int main(void)
 {
-    /* Match the vendor reset path shape: clear app RAM region, bring up the
-     * low-frequency clock, SoftDevice, timers, then device subsystems. */
     softdevice_init();
     timers_init();
 
+    board_rev_t rev = board_rev_detect();
+    board_pins_low_power(rev);
+
+    APP_ERROR_CHECK(twi_bus_init());
     leds_init();
     motor_init();
     touch_init();
-    fsm_init();
     ble_app_init();
 
     for (;;)

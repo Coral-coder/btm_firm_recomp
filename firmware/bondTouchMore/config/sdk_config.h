@@ -2586,7 +2586,7 @@
 // <e> TWI1_ENABLED - Enable TWI1 instance
 //==========================================================
 #ifndef TWI1_ENABLED
-#define TWI1_ENABLED 0
+#define TWI1_ENABLED 1
 #endif
 #if  TWI1_ENABLED
 // <q> TWI1_USE_EASY_DMA  - Use EasyDMA (if present)

@@ -15,6 +15,20 @@ in `fw-src/bondTouchMore/names.txt` and the vendor image.
 project, bringing device subsystems across from the decompiled reference one
 at a time while keeping the build green at every step.
 
+## Replacement firmware
+
+`firmware/bondTouchMore/` is a new, original firmware for the device, built on
+SDK 12.3 / S130 with the hardware facts recovered from the vendor image
+(`docs/hardware.md`). It is separate from the matching (byte-identical) work
+in `matching/`.
+
+Current state: SoftDevice/timer bring-up, board-revision strap (P0.28),
+low-power pin setup, both I2C buses (TWI0 P0.30/P0.29, TWI1 P0.03/P0.04) and a
+complete AW20036 LED driver (framebuffer, per-LED enable bits, global current,
+hardware pattern engines, status/IRQ service). Boots to a dim teal on all nine
+LEDs. Next: AW86224 haptics on both buses, touch controller (0x15, INT P0.18),
+GPIOTE for the interrupt lines, then BLE.
+
 ## Layout
 
 ```
