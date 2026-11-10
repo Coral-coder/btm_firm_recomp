@@ -1,5 +1,10 @@
 # Bond Touch More (Bond3) hardware
 
+> **Superseded in part.** `docs/firmware-map.md` ("Hardware, corrected") has the
+> full pin table and corrects three items below: `0x6A` is the touch
+> controller's bootloader address (not a charger), P0.15 is the accelerometer
+> interrupt, and AW20036 page 1 is DIM (current) while page 2 is FADE (PWM).
+
 Recovered from the vendor application image (`nrf51822_xxac.bin`, SHA-256
 `0b0754f3…f7d5`). Addresses in parentheses are where the evidence lives in the
 image. Items marked *unconfirmed* are inferences that still need checking on
